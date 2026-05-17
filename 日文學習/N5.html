@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日語 N5 隨身練 - 奶油質感版</title>
+    <style>
+        :root {
+            --bg-color: #fffaf0; --primary-color: #d2b48c; --accent-color: #8b4513;
+            --card-bg: #ffffff; --success: #6b8e23; --error: #cd5c5c;
+        }
+
+        body {
+            font-family: 'PingFang TC', sans-serif; background-color: var(--bg-color);
+            color: #5d4037; margin: 0; display: flex; flex-direction: row; height: 100vh; overflow: hidden;
+        }
+
+        /* 側邊欄改進：手機版預設隱藏 */
+        #sidebar {
+            width: 280px; background-color: #f5f5dc; padding: 20px;
+            border-right: 2px solid #eaddca; overflow-y: auto; transition: 0.3s;
+            position: relative; z-index: 100;
+        }
+
+        #main-content { flex: 1; padding: 20px; overflow-y: auto; position: relative; }
+
+        /* 手機版選單切換 */
+        .menu-toggle {
+            display: none; position: fixed; top: 15px; left: 15px;
+            background: var(--primary-color); color: white; border: none;
+            padding: 10px 15px; border-radius: 8px; cursor: pointer; z-index: 1001;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar {
+                position: fixed; left: -300px; height: 100%; width: 250px; box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+            #sidebar.active { left: 0; }
+            .menu-toggle { display: block; }
+            #main-content { padding-top: 60px; }
+        }
+
+        .unit-item {
+            background: var(--card-bg); padding: 12px; margin-bottom: 10px;
+            border-radius: 10px; cursor: pointer; border: 1px solid transparent; transition: 0.2s;
+        }
+        .unit-item.active { border-color: var(--accent-color); background: #fdf5e6; }
+
+        .question-box { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(210,180,140,0.2); margin-bottom: 20px; }
+        .q-text { font-size: 1.3rem; font-weight: bold; margin-bottom: 20px; line-height: 1.6; }
+        .option-btn {
+            display: block; width: 100%; padding: 15px; margin: 10px 0;
+            border: 2px solid #eee; border-radius: 12px; background: white;
+            cursor: pointer; font-size: 1.1rem; transition: 0.2s; text-align: left;
+        }
+        .option-btn:hover { background: #fffaf0; }
+        .correct { background-color: #e8f5e9 !important; border-color: var(--success) !important; color: var(--success); }
+        .wrong { background-color: #ffebee !important; border-color: var(--error) !important; color: var(--error); }
+
+        #explanation { display: none; background: #fef9e7; padding: 20px; border-radius: 15px; margin-top: 20px; border-left: 5px solid var(--primary-color); }
+        .word-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        .word-table th, .word-table td { border: 1px solid #eaddca; padding: 8px; text-align: center; }
+
+        #next-btn {
+            margin-top: 20px; width: 100%; padding: 15px; background: var(--accent-color);
+            color: white; border: none; border-radius: 12px; font-size: 1.1rem; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('active')">☰ 單元選單</button>
+
+    <div id="sidebar">
+        <h2 style="color: var(--accent-color);">N5 影片進度</h2>
+        <div id="unit-list"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="quiz-container">
+            <div class="question-box">
+                <div id="q-text" class="q-text">請從左側選擇一個單元開始練習</div>
+                <div id="options-container"></div>
+            </div>
+            <div id="explanation">
+                <p><strong>💡 詳解：</strong> <span id="exp-text"></span></p>
+                <table class="word-table">
+                    <thead><tr><th>漢字</th><th>假名</th><th>羅馬</th><th>意思</th></tr></thead>
+                    <tbody id="breakdown-body"></tbody>
+                </table>
+                <button id="next-btn">下一題</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="questions.js"></script>
+    <script>
+        let currentUnitIdx = 0;
+        let currentQIdx = 0;
+
+        function initApp() {
+            const list = document.getElementById('unit-list');
+            list.innerHTML = courseData.map((u, index) => `
+                <div class="unit-item ${index === currentUnitIdx ? 'active' : ''}" onclick="selectUnit(${index})">
+                    <strong>${u.unit}</strong>
+                </div>
+            `).join('');
+        }
+
+        function selectUnit(idx) {
+            currentUnitIdx = idx;
+            currentQIdx = 0;
+            document.getElementById('sidebar').classList.remove('active'); // 手機選單自動關閉
+            renderQuestion();
+            initApp();
+        }
+
+        function renderQuestion() {
+            const unit = courseData[currentUnitIdx];
+            const q = unit.questions[currentQIdx];
+            document.getElementById('q-text').innerText = q.q;
+            document.getElementById('explanation').style.display = 'none';
+            
+            const optContainer = document.getElementById('options-container');
+            optContainer.innerHTML = q.options.map((opt, i) => `
+                <button class="option-btn" onclick="checkAnswer(${i})">${opt}</button>
+            `).join('');
+        }
+
+        function checkAnswer(selectedIdx) {
+            const q = courseData[currentUnitIdx].questions[currentQIdx];
+            const allBtns = document.querySelectorAll('.option-btn');
+            
+            if (selectedIdx === q.correct) {
+                allBtns[selectedIdx].classList.add('correct');
+            } else {
+                allBtns[selectedIdx].classList.add('wrong');
+                allBtns[q.correct].classList.add('correct');
+            }
+
+            document.getElementById('exp-text').innerText = q.exp;
+            document.getElementById('breakdown-body').innerHTML = q.words.map(w => 
+                `<tr><td>${w.k}</td><td>${w.h}</td><td>${w.r}</td><td>${w.m}</td></tr>`
+            ).join('');
+            document.getElementById('explanation').style.display = 'block';
+        }
+
+        document.getElementById('next-btn').onclick = () => {
+            currentQIdx++;
+            if (currentQIdx < courseData[currentUnitIdx].questions.length) {
+                renderQuestion();
+            } else {
+                // 自動跳到下一單元
+                if (currentUnitIdx < courseData.length - 1) {
+                    currentUnitIdx++;
+                    currentQIdx = 0;
+                    alert("本單元練習完成！即將自動進入下一集。");
+                    initApp();
+                    renderQuestion();
+                } else {
+                    alert("恭喜！所有單元都練習完囉！");
+                }
+            }
+        };
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
